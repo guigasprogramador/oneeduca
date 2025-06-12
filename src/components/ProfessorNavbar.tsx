@@ -29,7 +29,8 @@ export const ProfessorNavbar = () => {
         <div className="flex items-center space-x-4">
           <Link to="/professor/dashboard" className="flex items-center gap-2">
             <img src="/favicon.svg" alt="OneEduca Logo" className="h-8 w-8" />
-            <span className="font-bold">OneEduca Professor</span>
+            <span className="font-bold text-xl text-primary">OneEduca</span>
+            <span className="bg-blue-500 text-white px-2 py-1 rounded text-xs font-semibold ml-2">Professor</span>
           </Link>
         </div>
 

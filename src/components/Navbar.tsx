@@ -24,8 +24,9 @@ const Navbar = () => {
     <header className="sticky top-0 z-40 w-full border-b bg-background shadow-sm transition-colors duration-300">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <Link to="/" className="flex items-center gap-2">
-          <img src="/favicon.svg" alt="Logo" className="h-8 w-8" />
-          <span className="font-bold text-xl hidden sm:inline text-primary">Edufactory</span>
+          <img src="/favicon.svg" alt="OneEduca Logo" className="h-8 w-8" />
+          <span className="font-bold text-xl hidden sm:inline text-primary">OneEduca</span>
+          <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold ml-2 hidden sm:inline">Aluno</span>
         </Link>
         
         <div className="flex items-center gap-2 md:gap-4">

@@ -24,8 +24,9 @@ const AdminNavbar = () => {
     <header className="sticky top-0 z-40 w-full border-b bg-background shadow-sm transition-colors duration-300">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/admin/dashboard" className="flex items-center gap-2">
-          <img src="/favicon.svg" alt="Logo" className="h-8 w-8" />
-          <span className="font-bold text-xl text-primary hidden sm:inline-block">Edufactory Admin</span>
+          <img src="/favicon.svg" alt="OneEduca Logo" className="h-8 w-8" />
+          <span className="font-bold text-xl text-primary hidden sm:inline-block">OneEduca</span>
+          <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold ml-2">ADM</span>
         </Link>
         
         <div className="flex items-center gap-2 md:gap-4">
