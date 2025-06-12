@@ -193,6 +193,8 @@ class ForumService {
    */
   async createTopic(topicData: CreateForumTopicData): Promise<string> {
     try {
+      console.log('Dados recebidos no createTopic:', topicData);
+      
       // Obter usuário atual para preencher created_by conforme política RLS
       const {
         data: { user }
@@ -201,16 +203,22 @@ class ForumService {
       if (!user?.id) {
         throw new Error('Usuário não autenticado');
       }
+      
+      console.log('Usuário autenticado:', user.id);
 
+      const insertData = {
+        title: topicData.title,
+        description: topicData.description,
+        course_id: topicData.courseId,
+        created_by: user.id
+      };
+      
+      console.log('Dados para inserção no banco:', insertData);
+      
       const { data, error } = await requestQueue.enqueue(async () => {
         return await supabase
           .from('course_forums')
-          .insert({
-            title: topicData.title,
-            description: topicData.description,
-            course_id: topicData.courseId,
-            created_by: user.id
-          })
+          .insert(insertData)
           .select('id')
           .single();
       });
@@ -232,7 +240,8 @@ class ForumService {
    */
   async getTopicMessages(forumId: string): Promise<ForumMessage[]> {
     try {
-      const { data, error } = await requestQueue.enqueue(async () => {
+      // Buscar mensagens sem join
+      const { data: messages, error } = await requestQueue.enqueue(async () => {
         return await supabase
           .from('forum_messages')
           .select(`
@@ -242,11 +251,7 @@ class ForumService {
             message,
             parent_message_id,
             created_at,
-            updated_at,
-            profiles!user_id (
-              name,
-              role
-            )
+            updated_at
           `)
           .eq('forum_id', forumId)
           .order('created_at', { ascending: true });
@@ -257,17 +262,28 @@ class ForumService {
         throw error;
       }
 
-      return (data || []).map((message: any) => ({
-        id: message.id,
-        forumId: message.forum_id,
-        userId: message.user_id,
-        userName: message.profiles?.name || 'Usuário não encontrado',
-        userRole: message.profiles?.role || 'student',
-        message: message.message,
-        parentMessageId: message.parent_message_id,
-        createdAt: message.created_at,
-        updatedAt: message.updated_at
-      }));
+      // Buscar dados dos usuários separadamente
+      const userIds = [...new Set((messages || []).map((msg: any) => msg.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, role')
+        .in('id', userIds);
+
+      // Mapear mensagens com dados dos usuários
+      return (messages || []).map((message: any) => {
+        const profile = profiles?.find(p => p.id === message.user_id);
+        return {
+          id: message.id,
+          forumId: message.forum_id,
+          userId: message.user_id,
+          userName: profile?.name || 'Usuário não encontrado',
+          userRole: profile?.role || 'student',
+          message: message.message,
+          parentMessageId: message.parent_message_id,
+          createdAt: message.created_at,
+          updatedAt: message.updated_at
+        };
+      });
     } catch (error) {
       console.error('Erro no serviço de mensagens:', error);
       throw error;
@@ -279,14 +295,30 @@ class ForumService {
    */
   async sendMessage(messageData: SendMessageData): Promise<string> {
     try {
+      console.log('Dados recebidos no sendMessage:', messageData);
+      
+      // Obter usuário atual para preencher user_id conforme política RLS
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const insertData = {
+        forum_id: messageData.forumId,
+        user_id: user.id,
+        message: messageData.message,
+        parent_message_id: messageData.parentMessageId
+      };
+      
+      console.log('Dados para inserção no banco:', insertData);
+      
       const { data, error } = await requestQueue.enqueue(async () => {
         return await supabase
           .from('forum_messages')
-          .insert({
-            forum_id: messageData.forumId,
-            message: messageData.message,
-            parent_message_id: messageData.parentMessageId
-          })
+          .insert(insertData)
           .select('id')
           .single();
       });
@@ -315,9 +347,7 @@ class ForumService {
             id,
             title,
             status,
-            profiles!professor_id (
-              name
-            )
+            professor_id
           `)
           .order('title', { ascending: true });
       });
@@ -327,12 +357,22 @@ class ForumService {
         throw error;
       }
 
-      return (data || []).map((course: any) => ({
-        id: course.id,
-        title: course.title,
-        status: course.status || 'draft',
-        professor_name: course.profiles?.name
-      }));
+      // Buscar dados dos professores separadamente
+      const professorIds = [...new Set((data || []).map((course: any) => course.professor_id).filter(Boolean))];
+      const { data: professors } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', professorIds);
+
+      return (data || []).map((course: any) => {
+        const professor = professors?.find(p => p.id === course.professor_id);
+        return {
+          id: course.id,
+          title: course.title,
+          status: course.status || 'draft',
+          professor_name: professor?.name || 'Professor não encontrado'
+        };
+      });
     } catch (error) {
       console.error('Erro no serviço de cursos:', error);
       throw error;

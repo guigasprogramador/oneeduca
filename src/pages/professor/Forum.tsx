@@ -128,11 +128,17 @@ const ProfessorForum = () => {
     if (!newTopicTitle || !selectedCourseId || !user?.id) return;
     
     try {
+      console.log('Dados do tópico:', {
+        title: newTopicTitle,
+        description: newTopicDescription,
+        courseId: selectedCourseId,
+        userId: user?.id
+      });
+      
       const topicData = {
         title: newTopicTitle,
         description: newTopicDescription,
-        course_id: selectedCourseId,
-        created_by: user.id
+        courseId: selectedCourseId
       };
       
       await forumService.createTopic(topicData);
@@ -180,8 +186,7 @@ const ProfessorForum = () => {
     
     try {
       const messageData = {
-        forum_id: selectedTopic.id,
-        user_id: user.id,
+        forumId: selectedTopic.id,
         message: newMessage
       };
       
@@ -493,12 +498,12 @@ const ProfessorForum = () => {
                     <div key={message.id} className="bg-muted/30 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <User className="h-4 w-4" />
-                        <span className="font-medium text-sm">{message.userName}</span>
+                        <span className="font-medium text-sm">{message.authorName}</span>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(message.createdAt)}
                         </span>
                       </div>
-                      <p className="text-sm">{message.message}</p>
+                      <p className="text-sm">{message.content}</p>
                     </div>
                   ))
                 )}

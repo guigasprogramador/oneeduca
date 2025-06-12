@@ -572,8 +572,7 @@ const courseService = {
         .select(`
           *,
           enrollments(count),
-          modules(count),
-          profiles!professor_id(full_name)
+          modules(count)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -583,7 +582,16 @@ const courseService = {
         throw new Error('Erro ao buscar cursos pendentes');
       }
 
-      return data.map(course => ({
+      // Buscar dados dos professores separadamente
+      const professorIds = [...new Set((data || []).map((course: any) => course.professor_id).filter(Boolean))];
+      const { data: professors } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', professorIds);
+
+      return (data || []).map(course => {
+        const professor = professors?.find(p => p.id === course.professor_id);
+        return {
         id: course.id,
         title: course.title,
         description: course.description || '',
@@ -601,8 +609,9 @@ const courseService = {
         status: course.status as CourseStatus,
         expiryDate: course.expiry_date,
         modulesCount: course.modules?.[0]?.count || 0,
-        professorName: course.profiles?.full_name
-      }));
+        professorName: professor?.full_name || 'Professor não encontrado'
+      };
+    });
     } catch (error) {
       console.error('Erro ao buscar cursos pendentes:', error);
       throw new Error('Erro ao buscar cursos pendentes');

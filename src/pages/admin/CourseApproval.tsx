@@ -50,7 +50,6 @@ const CourseApproval = () => {
         .from('courses')
         .select(`
           *,
-          instructor:profiles!fk_courses_professor(name, email, avatar_url),
           modules_count:modules(count)
         `)
         .eq('status', 'pending')
@@ -58,12 +57,23 @@ const CourseApproval = () => {
 
       if (error) throw error;
 
+      // Buscar dados dos professores separadamente
+      const professorIds = [...new Set((data || []).map((course: any) => course.professor_id).filter(Boolean))];
+      const { data: instructors } = await supabase
+        .from('profiles')
+        .select('id, name, email, avatar_url')
+        .in('id', professorIds);
+
       // Converte a estrutura retornada pelo Supabase para formatos simples
-      const formattedCourses = (data as any[] || []).map((course) => ({
-        ...course,
-        // `modules_count` vem como array com objeto { count }
-        modules_count: course.modules_count?.[0]?.count ?? 0,
-      }));
+      const formattedCourses = (data as any[] || []).map((course) => {
+        const instructor = instructors?.find(i => i.id === course.professor_id);
+        return {
+          ...course,
+          instructor: instructor || { name: 'Professor não encontrado', email: '', avatar_url: '' },
+          // `modules_count` vem como array com objeto { count }
+          modules_count: course.modules_count?.[0]?.count ?? 0,
+        };
+      });
 
       setCourses(formattedCourses);
     } catch (error: any) {

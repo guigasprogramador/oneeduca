@@ -854,10 +854,7 @@ const getCertificatesByCourse = async (courseId: string, page: number = 1, limit
     
     const { data, error, count } = await supabase
       .from('certificates')
-      .select(`
-        *,
-        profiles!user_id(full_name, email)
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
       .eq('course_id', courseId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -867,12 +864,22 @@ const getCertificatesByCourse = async (courseId: string, page: number = 1, limit
       throw error;
     }
 
+    // Buscar dados dos usuários separadamente
+    const userIds = [...new Set((data || []).map((cert: any) => cert.user_id).filter(Boolean))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', userIds);
+
     return {
-      certificates: data?.map(cert => ({
-        ...mapToCertificate(cert),
-        userEmail: cert.profiles?.email,
-        userFullName: cert.profiles?.full_name
-      })) || [],
+      certificates: (data || []).map(cert => {
+        const profile = profiles?.find(p => p.id === cert.user_id);
+        return {
+          ...mapToCertificate(cert),
+          userEmail: profile?.email || 'Email não encontrado',
+          userFullName: profile?.full_name || 'Nome não encontrado'
+        };
+      }),
       total: count || 0,
       page,
       totalPages: Math.ceil((count || 0) / limit)
@@ -1046,11 +1053,7 @@ const getAllCertificates = async (page: number = 1, limit: number = 10, searchTe
     const offset = (page - 1) * limit;
     let query = supabase
       .from('certificates')
-      .select(`
-        *,
-        profiles!user_id(full_name, email),
-        courses!course_id(title)
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
 
     if (searchTerm) {
       query = query.or(`user_name.ilike.%${searchTerm}%,course_name.ilike.%${searchTerm}%`);
@@ -1065,13 +1068,26 @@ const getAllCertificates = async (page: number = 1, limit: number = 10, searchTe
       throw error;
     }
 
+    // Buscar dados dos usuários e cursos separadamente
+    const userIds = [...new Set((data || []).map((cert: any) => cert.user_id).filter(Boolean))];
+    const courseIds = [...new Set((data || []).map((cert: any) => cert.course_id).filter(Boolean))];
+    
+    const [profilesResult, coursesResult] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, email').in('id', userIds),
+      supabase.from('courses').select('id, title').in('id', courseIds)
+    ]);
+
     return {
-      certificates: data?.map(cert => ({
-        ...mapToCertificate(cert),
-        userEmail: cert.profiles?.email,
-        userFullName: cert.profiles?.full_name,
-        courseTitle: cert.courses?.title
-      })) || [],
+      certificates: (data || []).map(cert => {
+        const profile = profilesResult.data?.find(p => p.id === cert.user_id);
+        const course = coursesResult.data?.find(c => c.id === cert.course_id);
+        return {
+          ...mapToCertificate(cert),
+          userEmail: profile?.email || 'Email não encontrado',
+          userFullName: profile?.full_name || 'Nome não encontrado',
+          courseTitle: course?.title || 'Curso não encontrado'
+        };
+      }),
       total: count || 0,
       page,
       totalPages: Math.ceil((count || 0) / limit)
