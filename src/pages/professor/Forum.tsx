@@ -452,7 +452,7 @@ const ProfessorForum = () => {
       </Dialog>
 
       {/* Modal para Visualizar Tópico e Mensagens */}
-      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+      <Dialog open={isViewTopicModalOpen} onOpenChange={setIsViewTopicModalOpen}>
         <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>Discussão do Tópico</DialogTitle>
@@ -493,12 +493,12 @@ const ProfessorForum = () => {
                     <div key={message.id} className="bg-muted/30 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <User className="h-4 w-4" />
-                        <span className="font-medium text-sm">{message.authorName}</span>
+                        <span className="font-medium text-sm">{message.userName}</span>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(message.createdAt)}
                         </span>
                       </div>
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm">{message.message}</p>
                     </div>
                   ))
                 )}
@@ -522,7 +522,7 @@ const ProfessorForum = () => {
           )}
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsViewTopicModalOpen(false)}>
               Fechar
             </Button>
             <Button 

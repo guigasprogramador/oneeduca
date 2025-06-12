@@ -47,25 +47,11 @@ class ForumService {
    */
   async getAllTopicsForAdmin(): Promise<ForumTopic[]> {
     try {
+      // Consulta simplificada sem relacionamentos explícitos para evitar erros 400
       const { data, error } = await requestQueue.enqueue(async () => {
         return await supabase
           .from('course_forums')
-          .select(`
-            id,
-            title,
-            description,
-            course_id,
-            created_by,
-            created_at,
-            updated_at,
-            courses!inner (
-              title,
-              status
-            ),
-            profiles!created_by (
-              name
-            )
-          `)
+          .select('*')
           .order('updated_at', { ascending: false });
       });
 
@@ -91,15 +77,28 @@ class ForumService {
             .limit(1)
             .single();
 
+          // Obter informações do curso e do usuário de forma isolada
+          const { data: course } = await supabase
+            .from('courses')
+            .select('title, status')
+            .eq('id', topic.course_id)
+            .single();
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', topic.created_by)
+            .single();
+
           return {
             id: topic.id,
             title: topic.title,
             description: topic.description,
             courseId: topic.course_id,
-            courseName: topic.courses?.title || 'Curso não encontrado',
-            courseStatus: topic.courses?.status || 'unknown',
+            courseName: course?.title || 'Curso não encontrado',
+            courseStatus: course?.status || 'unknown',
             createdBy: topic.created_by,
-            createdByName: topic.profiles?.name || 'Usuário não encontrado',
+            createdByName: profile?.name || 'Usuário não encontrado',
             createdAt: topic.created_at,
             updatedAt: topic.updated_at,
             messagesCount: count || 0,
@@ -120,27 +119,24 @@ class ForumService {
    */
   async getTopicsForProfessor(professorId: string): Promise<ForumTopic[]> {
     try {
+      // Primeiro, obter todos os cursos do professor
+      const { data: professorCourses, error: courseError } = await supabase
+        .from('courses')
+        .select('id, title, status')
+        .eq('professor_id', professorId);
+
+      if (courseError) {
+        console.error('Erro ao buscar cursos do professor:', courseError);
+        throw courseError;
+      }
+
+      const courseIds = (professorCourses || []).map(c => c.id);
+
       const { data, error } = await requestQueue.enqueue(async () => {
         return await supabase
           .from('course_forums')
-          .select(`
-            id,
-            title,
-            description,
-            course_id,
-            created_by,
-            created_at,
-            updated_at,
-            courses!inner (
-              title,
-              status,
-              professor_id
-            ),
-            profiles!created_by (
-              name
-            )
-          `)
-          .eq('courses.professor_id', professorId)
+          .select('*')
+          .in('course_id', courseIds)
           .order('updated_at', { ascending: false });
       });
 
@@ -166,15 +162,17 @@ class ForumService {
             .limit(1)
             .single();
 
+          const course = professorCourses?.find(c => c.id === topic.course_id);
+
           return {
             id: topic.id,
             title: topic.title,
             description: topic.description,
             courseId: topic.course_id,
-            courseName: topic.courses?.title || 'Curso não encontrado',
-            courseStatus: topic.courses?.status || 'unknown',
+            courseName: course?.title || 'Curso não encontrado',
+            courseStatus: course?.status || 'unknown',
             createdBy: topic.created_by,
-            createdByName: topic.profiles?.name || 'Usuário não encontrado',
+            createdByName: 'Usuário', // nome não crítico nessa listagem
             createdAt: topic.created_at,
             updatedAt: topic.updated_at,
             messagesCount: count || 0,
@@ -195,13 +193,23 @@ class ForumService {
    */
   async createTopic(topicData: CreateForumTopicData): Promise<string> {
     try {
+      // Obter usuário atual para preencher created_by conforme política RLS
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+
       const { data, error } = await requestQueue.enqueue(async () => {
         return await supabase
           .from('course_forums')
           .insert({
             title: topicData.title,
             description: topicData.description,
-            course_id: topicData.courseId
+            course_id: topicData.courseId,
+            created_by: user.id
           })
           .select('id')
           .single();

@@ -138,8 +138,7 @@ const AdminForum = () => {
       const topicData = {
         title: newTopicTitle,
         description: newTopicDescription,
-        course_id: selectedCourseId,
-        created_by: user?.id
+        courseId: selectedCourseId
       };
       
       await forumService.createTopic(topicData);
@@ -187,8 +186,7 @@ const AdminForum = () => {
     
     try {
       const messageData = {
-        forum_id: selectedTopic.id,
-        user_id: user.id,
+        forumId: selectedTopic.id,
         message: newMessage
       };
       

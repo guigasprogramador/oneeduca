@@ -19,17 +19,17 @@ interface PendingCourse {
   category: string;
   level: string;
   duration_hours: number;
-  price: number;
+  price?: number; // não utilizado
   created_at: string;
   expiration_date?: string;
   image_url?: string;
-  instructor: {
+  instructor?: {
     name: string;
-    email: string; 
-    avatar_url?: string;
+    email: string;
+    avatar_url?: string | null;
   };
   modules_count: number;
-  lessons_count: number;
+  lessons_count?: number;
 }
 
 const CourseApproval = () => {
@@ -51,15 +51,21 @@ const CourseApproval = () => {
         .select(`
           *,
           instructor:profiles!fk_courses_professor(name, email, avatar_url),
-          modules_count:modules(count),
-          lessons_count:lessons(count)
+          modules_count:modules(count)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setCourses((data as unknown as any[]) || []);
+      // Converte a estrutura retornada pelo Supabase para formatos simples
+      const formattedCourses = (data as any[] || []).map((course) => ({
+        ...course,
+        // `modules_count` vem como array com objeto { count }
+        modules_count: course.modules_count?.[0]?.count ?? 0,
+      }));
+
+      setCourses(formattedCourses);
     } catch (error: any) {
       console.error('Erro ao buscar cursos pendentes:', error);
       toast.error("Erro ao carregar cursos pendentes");
@@ -117,7 +123,8 @@ const CourseApproval = () => {
     }
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string) => {
+    if (!name) return '';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
@@ -188,13 +195,19 @@ const CourseApproval = () => {
                     <div className="flex-1">
                       <CardTitle className="text-xl mb-2">{course.title}</CardTitle>
                       <div className="flex items-center gap-3 mb-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={course.instructor.avatar_url} />
-                          <AvatarFallback>{getInitials(course.instructor.name)}</AvatarFallback>
-                        </Avatar>
+                        {course.instructor ? (
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={course.instructor.avatar_url ?? undefined} />
+                            <AvatarFallback>{getInitials(course.instructor.name)}</AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                          </Avatar>
+                        )}
                         <div>
-                          <p className="font-medium text-sm">{course.instructor.name}</p>
-                          <p className="text-xs text-muted-foreground">{course.instructor.email}</p>
+                          <p className="font-medium text-sm">{course.instructor?.name ?? 'Desconhecido'}</p>
+                          <p className="text-xs text-muted-foreground">{course.instructor?.email ?? '-'}</p>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -216,23 +229,21 @@ const CourseApproval = () => {
                   {course.description}
                 </CardDescription>
                 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{course.duration_hours}h</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">R$ {course.price.toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{course.modules_count} módulos</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{course.lessons_count} lições</span>
-                  </div>
+                  {course.lessons_count !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{course.lessons_count} lições</span>
+                    </div>
+                  )}
                 </div>
 
                 {course.expiration_date && (
