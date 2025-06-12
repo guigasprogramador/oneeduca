@@ -23,6 +23,7 @@ import CourseContent from "./pages/CourseContent";
 import Certificate from "./pages/Certificate";
 import CoursePlayer from "./pages/aluno/CoursePlayer";
 import MeusCertificados from "./pages/aluno/MeusCertificados";
+import QuizPage from "./pages/aluno/QuizPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminModules from "./pages/admin/AdminModules";
@@ -92,6 +93,7 @@ const App = () => (
                 <Route path="/courses/:courseId" element={<CourseDetails />} />
                 <Route path="/courses/:courseId/content" element={<CourseContent />} />
                 <Route path="/aluno/curso/:id/player" element={<CoursePlayer />} />
+                <Route path="/aluno/curso/:courseId/quiz/:moduleId" element={<QuizPage />} />
                 <Route path="/aluno/certificados" element={<MeusCertificados />} />
                 <Route path="/certificates/:certificateId" element={<Certificate />} />
                 <Route path="/aluno/certificado/:certificateId" element={<Certificate />} />

@@ -8,16 +8,55 @@ import { toast } from "sonner";
 import { Lesson, Module } from "@/types";
 import VideoPlayer from "@/components/VideoPlayer";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle, Award, ChevronRight } from "lucide-react";
+import { CheckCircle, Award, ChevronRight, FileText, ClipboardCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+// Interfaces estendidas para incluir quizzes e anexos
+interface LessonAttachment {
+  id: string;
+  lessonId: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt?: string;
+}
+
+interface QuizData {
+  title: string;
+  description?: string;
+  timeLimit?: number;
+  passingScore: number;
+  questions: QuizQuestion[];
+}
+
+interface QuizQuestion {
+  id: string;
+  type: 'multiple_choice' | 'true_false' | 'short_answer';
+  question: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation?: string;
+  points: number;
+}
+
+// Estendendo as interfaces existentes
+interface ExtendedLesson extends Lesson {
+  attachments?: LessonAttachment[];
+}
+
+interface ExtendedModule extends Module {
+  hasQuiz?: boolean;
+  quizData?: QuizData;
+}
 
 const CoursePlayer = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [modules, setModules] = useState<Module[]>([]);
-  const [selectedModule, setSelectedModule] = useState<Module | null>(null);
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [modules, setModules] = useState<ExtendedModule[]>([]);
+  const [selectedModule, setSelectedModule] = useState<ExtendedModule | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<ExtendedLesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +103,66 @@ const CoursePlayer = () => {
         
         // Buscar módulos e aulas
         const mods = await moduleService.getModulesByCourseId(id);
-        const lessonsIds = mods.flatMap(module => module.lessons ? module.lessons.map(lesson => lesson.id) : []);
+        
+        // Buscar informações adicionais: quizzes e anexos
+        const modsWithQuizzes = await Promise.all(mods.map(async (module) => {
+          try {
+            // Buscar informações de quiz para o módulo
+            const { data: quizData, error: quizError } = await supabase
+              .from('modules')
+              .select('has_quiz, quiz_data')
+              .eq('id', module.id)
+              .single();
+              
+            if (quizError) {
+              console.error(`Erro ao buscar quiz para o módulo ${module.id}:`, quizError);
+              return module;
+            }
+            
+            // Buscar anexos para todas as aulas do módulo
+            const lessonsWithAttachments = await Promise.all((module.lessons || []).map(async (lesson) => {
+              try {
+                const { data: attachments, error: attachmentsError } = await supabase
+                  .from('lesson_attachments')
+                  .select('*')
+                  .eq('lesson_id', lesson.id);
+                  
+                if (attachmentsError) {
+                  console.error(`Erro ao buscar anexos para a aula ${lesson.id}:`, attachmentsError);
+                  return lesson;
+                }
+                
+                return {
+                  ...lesson,
+                  attachments: attachments ? attachments.map(att => ({
+                    id: att.id,
+                    lessonId: att.lesson_id,
+                    fileName: att.file_name,
+                    fileUrl: att.file_url,
+                    fileType: att.file_type,
+                    fileSize: att.file_size || 0,
+                    uploadedAt: att.created_at
+                  })) : []
+                };
+              } catch (error) {
+                console.error(`Erro ao processar anexos para a aula ${lesson.id}:`, error);
+                return lesson;
+              }
+            }));
+            
+            return {
+              ...module,
+              hasQuiz: quizData?.has_quiz || false,
+              quizData: quizData?.quiz_data ? JSON.parse(quizData.quiz_data) : undefined,
+              lessons: lessonsWithAttachments
+            };
+          } catch (error) {
+            console.error(`Erro ao processar módulo ${module.id}:`, error);
+            return module;
+          }
+        }));
+        
+        const lessonsIds = modsWithQuizzes.flatMap(module => module.lessons ? module.lessons.map(lesson => lesson.id) : []);
         
         // Buscar progresso salvo no banco
         const { data: completedLessons, error: completedLessonsError } = await supabase
@@ -76,7 +174,7 @@ const CoursePlayer = () => {
         
         const completedLessonsSet = new Set(completedLessons?.map(item => item.lesson_id) || []);
         
-        const modsWithProgress = mods.map(module => ({
+        const modsWithProgress = modsWithQuizzes.map(module => ({
           ...module,
           lessons: module.lessons ? module.lessons.map(lesson => ({
             ...lesson,
@@ -570,6 +668,57 @@ const CoursePlayer = () => {
                       <div className="mt-6 prose max-w-none">
                         <h2 className="text-xl font-semibold mb-2">Conteúdo da Aula</h2>
                         <div dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
+                      </div>
+                    )}
+                    
+                    {/* Exibir anexos da aula */}
+                    {selectedLesson.attachments && selectedLesson.attachments.length > 0 && (
+                      <div className="mt-6">
+                        <h2 className="text-xl font-semibold mb-2">Documentos</h2>
+                        <div className="space-y-2">
+                          {selectedLesson.attachments.map((attachment) => (
+                            <div key={attachment.id} className="flex items-center p-2 border rounded hover:bg-muted">
+                              <FileText className="h-5 w-5 mr-2" />
+                              <a 
+                                href={attachment.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline flex-1"
+                              >
+                                {attachment.fileName}
+                              </a>
+                              <span className="text-xs text-muted-foreground">
+                                {(attachment.fileSize / 1024).toFixed(2)} KB
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Exibir quiz do módulo */}
+                    {selectedModule?.hasQuiz && selectedModule?.quizData && (
+                      <div className="mt-6 p-4 border rounded bg-muted">
+                        <h2 className="text-xl font-semibold mb-2 flex items-center">
+                          <ClipboardCheck className="h-5 w-5 mr-2" />
+                          Quiz: {selectedModule.quizData.title || 'Avaliação do Módulo'}
+                        </h2>
+                        <p className="mb-4">{selectedModule.quizData.description || 'Teste seus conhecimentos neste módulo.'}</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm"><strong>Nota mínima:</strong> {selectedModule.quizData.passingScore}%</p>
+                            {selectedModule.quizData.timeLimit && (
+                              <p className="text-sm"><strong>Tempo:</strong> {selectedModule.quizData.timeLimit} minutos</p>
+                            )}
+                            <p className="text-sm"><strong>Questões:</strong> {selectedModule.quizData.questions?.length || 0}</p>
+                          </div>
+                          <Button 
+                            onClick={() => navigate(`/aluno/curso/${id}/quiz/${selectedModule.id}`)}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            Iniciar Quiz
+                          </Button>
+                        </div>
                       </div>
                     )}
                     

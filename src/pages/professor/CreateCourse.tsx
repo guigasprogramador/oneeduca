@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import courseService from "../../services/courseService";
+import { moduleService } from "../../services/moduleService";
+import { lessonService } from "../../services/lessonService";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -509,9 +511,70 @@ const CreateCourse = () => {
       
       console.log('Curso criado:', result);
       
+      // Agora criar os módulos e aulas
+      for (let moduleIndex = 0; moduleIndex < modules.length; moduleIndex++) {
+        const module = modules[moduleIndex];
+        
+        // Preparar dados do quiz se existir
+        let quizData = null;
+        if (module.hasAssessment && module.assessmentQuestions.length > 0) {
+          quizData = {
+            title: module.assessmentTitle || 'Quiz do Módulo',
+            description: module.assessmentDescription || '',
+            passingScore: module.assessmentPassingScore || 70,
+            timeLimit: 30, // 30 minutos por padrão
+            questions: module.assessmentQuestions.map(q => ({
+              id: q.id,
+              type: q.type,
+              question: q.question,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              explanation: '',
+              points: 1
+            }))
+          };
+        }
+        
+        // Criar módulo
+        const modulePayload = {
+          title: module.title,
+          description: module.description,
+          order: moduleIndex + 1,
+          hasQuiz: module.hasAssessment,
+          quizData: quizData
+        };
+        
+        console.log(`Criando módulo ${moduleIndex + 1}:`, modulePayload);
+        
+        const moduleResult = await moduleService.createModule(result.id, modulePayload);
+        
+        console.log(`Módulo ${moduleIndex + 1} criado:`, moduleResult);
+        
+        // Criar aulas do módulo
+        for (let lessonIndex = 0; lessonIndex < module.lessons.length; lessonIndex++) {
+          const lesson = module.lessons[lessonIndex];
+          
+          const lessonPayload = {
+            title: lesson.title,
+            description: lesson.description,
+            duration: lesson.duration,
+            videoUrl: lesson.videoUrl,
+            content: lesson.content,
+            order: lessonIndex + 1,
+            attachments: [] // Por enquanto vazio, pode ser implementado depois
+          };
+          
+          console.log(`Criando aula ${lessonIndex + 1} do módulo ${moduleIndex + 1}:`, lessonPayload);
+          
+          const lessonResult = await lessonService.createLesson(moduleResult.id, lessonPayload);
+          
+          console.log(`Aula ${lessonIndex + 1} do módulo ${moduleIndex + 1} criada:`, lessonResult);
+        }
+      }
+      
       toast({
         title: "Curso criado com sucesso!",
-        description: "O curso foi enviado para aprovação e aparecerá na lista de cursos pendentes."
+        description: "O curso com todos os módulos e aulas foi enviado para aprovação e aparecerá na lista de cursos pendentes."
       });
       
       navigate('/professor/courses');

@@ -1,23 +1,41 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { QuizData, QuizQuestion, QuizResponse } from '../types/professor';
 
 export const quizService = {
   // Criar um novo quiz para um módulo
   async createQuiz(moduleId: string, quizData: QuizData): Promise<QuizData> {
     try {
+      // Primeiro, verificar se o módulo existe
+      const { data: moduleData, error: moduleError } = await supabase
+        .from('modules')
+        .select('id')
+        .eq('id', moduleId)
+        .single();
+
+      if (moduleError) {
+        console.error('Erro ao verificar módulo:', moduleError);
+        throw new Error('Módulo não encontrado');
+      }
+
+      // Preparar os dados do quiz para armazenar no formato JSONB
+      const quizDataForStorage = {
+        title: quizData.title,
+        description: quizData.description,
+        questions: quizData.questions,
+        passingScore: quizData.passingScore,
+        timeLimit: quizData.timeLimit,
+        maxAttempts: quizData.maxAttempts
+      };
+
+      // Atualizar o módulo com os dados do quiz
       const { data, error } = await supabase
-        .from('module_quizzes')
-        .insert({
-          module_id: moduleId,
-          title: quizData.title,
-          description: quizData.description,
-          questions: quizData.questions,
-          passing_score: quizData.passingScore,
-          time_limit: quizData.timeLimit,
-          max_attempts: quizData.maxAttempts,
-          is_active: quizData.isActive
+        .from('modules')
+        .update({
+          has_quiz: true,
+          quiz_data: quizDataForStorage
         })
-        .select('*')
+        .eq('id', moduleId)
+        .select('id, quiz_data')
         .single();
 
       if (error) {
@@ -25,17 +43,18 @@ export const quizService = {
         throw new Error('Erro ao criar quiz');
       }
 
+      // Retornar os dados do quiz
       return {
-        id: data.id,
-        title: data.title,
-        description: data.description || '',
-        questions: data.questions || [],
-        passingScore: data.passing_score,
-        timeLimit: data.time_limit,
-        maxAttempts: data.max_attempts,
-        isActive: data.is_active,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        id: data.id, // Usando o ID do módulo como ID do quiz
+        title: quizData.title,
+        description: quizData.description || '',
+        questions: quizData.questions || [],
+        passingScore: quizData.passingScore,
+        timeLimit: quizData.timeLimit,
+        maxAttempts: quizData.maxAttempts,
+        isActive: true,
+        createdAt: null,
+        updatedAt: null
       };
     } catch (error) {
       console.error('Erro ao criar quiz:', error);
@@ -47,30 +66,40 @@ export const quizService = {
   async getQuizByModuleId(moduleId: string): Promise<QuizData | null> {
     try {
       const { data, error } = await supabase
-        .from('module_quizzes')
-        .select('*')
-        .eq('module_id', moduleId)
+        .from('modules')
+        .select('id, quiz_data, has_quiz')
+        .eq('id', moduleId)
         .single();
 
       if (error) {
         if (error.code === 'PGRST116') {
-          return null; // Quiz não encontrado
+          return null; // Módulo não encontrado
         }
-        console.error('Erro ao buscar quiz:', error);
+        console.error('Erro ao buscar módulo:', error);
         throw new Error('Erro ao buscar quiz');
       }
 
+      // Verificar se o módulo tem quiz
+      if (!data.has_quiz || !data.quiz_data) {
+        return null; // Módulo não tem quiz
+      }
+
+      // Converter o JSON armazenado para objeto
+      const quizData = typeof data.quiz_data === 'string' 
+        ? JSON.parse(data.quiz_data) 
+        : data.quiz_data;
+
       return {
-        id: data.id,
-        title: data.title,
-        description: data.description || '',
-        questions: data.questions || [],
-        passingScore: data.passing_score,
-        timeLimit: data.time_limit,
-        maxAttempts: data.max_attempts,
-        isActive: data.is_active,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        id: data.id, // Usando o ID do módulo como ID do quiz
+        title: quizData.title || 'Quiz',
+        description: quizData.description || '',
+        questions: quizData.questions || [],
+        passingScore: quizData.passingScore || 70,
+        timeLimit: quizData.timeLimit,
+        maxAttempts: quizData.maxAttempts,
+        isActive: true,
+        createdAt: null,
+        updatedAt: null
       };
     } catch (error) {
       console.error('Erro ao buscar quiz:', error);
@@ -79,25 +108,43 @@ export const quizService = {
   },
 
   // Atualizar quiz
-  async updateQuiz(quizId: string, quizData: Partial<QuizData>): Promise<QuizData> {
+  async updateQuiz(moduleId: string, quizData: Partial<QuizData>): Promise<QuizData> {
     try {
-      const updateData: any = {
-        updated_at: new Date().toISOString()
+      // Primeiro, buscar os dados atuais do quiz
+      const { data: currentModule, error: fetchError } = await supabase
+        .from('modules')
+        .select('quiz_data')
+        .eq('id', moduleId)
+        .single();
+
+      if (fetchError) {
+        console.error('Erro ao buscar módulo:', fetchError);
+        throw new Error('Módulo não encontrado');
+      }
+
+      // Combinar dados existentes com novos dados
+      const currentQuizData = currentModule.quiz_data ? 
+        (typeof currentModule.quiz_data === 'string' ? JSON.parse(currentModule.quiz_data) : currentModule.quiz_data) 
+        : {};
+
+      const updatedQuizData = {
+        ...currentQuizData,
+        ...(quizData.title && { title: quizData.title }),
+        ...(quizData.description !== undefined && { description: quizData.description }),
+        ...(quizData.questions && { questions: quizData.questions }),
+        ...(quizData.passingScore !== undefined && { passingScore: quizData.passingScore }),
+        ...(quizData.timeLimit !== undefined && { timeLimit: quizData.timeLimit }),
+        ...(quizData.maxAttempts !== undefined && { maxAttempts: quizData.maxAttempts })
       };
 
-      if (quizData.title) updateData.title = quizData.title;
-      if (quizData.description !== undefined) updateData.description = quizData.description;
-      if (quizData.questions) updateData.questions = quizData.questions;
-      if (quizData.passingScore !== undefined) updateData.passing_score = quizData.passingScore;
-      if (quizData.timeLimit !== undefined) updateData.time_limit = quizData.timeLimit;
-      if (quizData.maxAttempts !== undefined) updateData.max_attempts = quizData.maxAttempts;
-      if (quizData.isActive !== undefined) updateData.is_active = quizData.isActive;
-
       const { data, error } = await supabase
-        .from('module_quizzes')
-        .update(updateData)
-        .eq('id', quizId)
-        .select('*')
+        .from('modules')
+        .update({
+          quiz_data: updatedQuizData,
+          has_quiz: true
+        })
+        .eq('id', moduleId)
+        .select('id, quiz_data')
         .single();
 
       if (error) {
@@ -105,17 +152,19 @@ export const quizService = {
         throw new Error('Erro ao atualizar quiz');
       }
 
+      const finalQuizData = typeof data.quiz_data === 'string' ? JSON.parse(data.quiz_data) : data.quiz_data;
+
       return {
         id: data.id,
-        title: data.title,
-        description: data.description || '',
-        questions: data.questions || [],
-        passingScore: data.passing_score,
-        timeLimit: data.time_limit,
-        maxAttempts: data.max_attempts,
-        isActive: data.is_active,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        title: finalQuizData.title || 'Quiz',
+        description: finalQuizData.description || '',
+        questions: finalQuizData.questions || [],
+        passingScore: finalQuizData.passingScore || 70,
+        timeLimit: finalQuizData.timeLimit,
+        maxAttempts: finalQuizData.maxAttempts,
+        isActive: true,
+        createdAt: null,
+        updatedAt: null
       };
     } catch (error) {
       console.error('Erro ao atualizar quiz:', error);
@@ -124,12 +173,15 @@ export const quizService = {
   },
 
   // Deletar quiz
-  async deleteQuiz(quizId: string): Promise<void> {
+  async deleteQuiz(moduleId: string): Promise<void> {
     try {
       const { error } = await supabase
-        .from('module_quizzes')
-        .delete()
-        .eq('id', quizId);
+        .from('modules')
+        .update({
+          has_quiz: false,
+          quiz_data: null
+        })
+        .eq('id', moduleId);
 
       if (error) {
         console.error('Erro ao deletar quiz:', error);
@@ -142,19 +194,21 @@ export const quizService = {
   },
 
   // Submeter resposta do quiz
-  async submitQuizResponse(quizId: string, userId: string, responses: QuizResponse[]): Promise<{ score: number; passed: boolean; attemptId: string }> {
+  async submitQuizResponse(moduleId: string, userId: string, responses: QuizResponse[]): Promise<{ score: number; attemptId: string }> {
     try {
       // Buscar o quiz para calcular a pontuação
-      const { data: quiz, error: quizError } = await supabase
-        .from('module_quizzes')
-        .select('*')
-        .eq('id', quizId)
+      const { data: module, error: quizError } = await supabase
+        .from('modules')
+        .select('quiz_data, has_quiz')
+        .eq('id', moduleId)
         .single();
 
-      if (quizError) {
+      if (quizError || !module.has_quiz || !module.quiz_data) {
         console.error('Erro ao buscar quiz:', quizError);
         throw new Error('Quiz não encontrado');
       }
+
+      const quiz = typeof module.quiz_data === 'string' ? JSON.parse(module.quiz_data) : module.quiz_data;
 
       // Calcular pontuação
       const questions: QuizQuestion[] = quiz.questions || [];
@@ -168,18 +222,20 @@ export const quizService = {
       });
 
       const score = Math.round((correctAnswers / questions.length) * 100);
-      const passed = score >= quiz.passing_score;
+      const passed = score >= (quiz.passingScore || 70);
 
-      // Salvar tentativa
+      // Salvar tentativa na tabela quiz_responses (upsert para permitir retentativas)
       const { data: attempt, error: attemptError } = await supabase
-        .from('quiz_attempts')
-        .insert({
-          quiz_id: quizId,
+        .from('quiz_responses')
+        .upsert({
+          module_id: moduleId,
           user_id: userId,
           responses: responses,
           score: score,
-          passed: passed,
+          max_score: questions.length * 100,
           completed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,module_id'
         })
         .select('*')
         .single();
@@ -191,7 +247,6 @@ export const quizService = {
 
       return {
         score,
-        passed,
         attemptId: attempt.id
       };
     } catch (error) {
@@ -201,14 +256,14 @@ export const quizService = {
   },
 
   // Buscar tentativas de um usuário para um quiz
-  async getUserQuizAttempts(quizId: string, userId: string): Promise<any[]> {
+  async getUserQuizAttempts(moduleId: string, userId: string): Promise<any[]> {
     try {
       const { data, error } = await supabase
-        .from('quiz_attempts')
+        .from('quiz_responses')
         .select('*')
-        .eq('quiz_id', quizId)
+        .eq('module_id', moduleId)
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('completed_at', { ascending: false });
 
       if (error) {
         console.error('Erro ao buscar tentativas:', error);
@@ -223,16 +278,16 @@ export const quizService = {
   },
 
   // Buscar todas as tentativas de um quiz (para professores)
-  async getQuizAttempts(quizId: string): Promise<any[]> {
+  async getQuizAttempts(moduleId: string): Promise<any[]> {
     try {
       const { data, error } = await supabase
-        .from('quiz_attempts')
+        .from('quiz_responses')
         .select(`
           *,
-          users(id, name, email)
+          profiles(id, name)
         `)
-        .eq('quiz_id', quizId)
-        .order('created_at', { ascending: false });
+        .eq('module_id', moduleId)
+        .order('completed_at', { ascending: false });
 
       if (error) {
         console.error('Erro ao buscar tentativas do quiz:', error);
@@ -247,7 +302,7 @@ export const quizService = {
   },
 
   // Buscar estatísticas do quiz
-  async getQuizStats(quizId: string): Promise<{
+  async getQuizStats(moduleId: string): Promise<{
     totalAttempts: number;
     averageScore: number;
     passRate: number;
@@ -255,9 +310,9 @@ export const quizService = {
   }> {
     try {
       const { data, error } = await supabase
-        .from('quiz_attempts')
-        .select('score, passed')
-        .eq('quiz_id', quizId);
+        .from('quiz_responses')
+        .select('score')
+        .eq('module_id', moduleId);
 
       if (error) {
         console.error('Erro ao buscar estatísticas:', error);
@@ -277,7 +332,7 @@ export const quizService = {
       }
 
       const totalScore = attempts.reduce((sum, attempt) => sum + attempt.score, 0);
-      const passedAttempts = attempts.filter(attempt => attempt.passed).length;
+      const passedAttempts = attempts.filter(attempt => attempt.score >= 70).length;
       
       return {
         totalAttempts,
