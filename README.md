@@ -1,22 +1,22 @@
-# Welcome to Edufactory
+# Welcome to OneEduca
 
 ## Project info
 
-**Edufactory Learning Platform**
+**OneEduca Learning Platform**
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
 
-**Use Edufactory**
+**Use OneEduca**
 
-Access the Edufactory platform to manage your learning content.
+Access the OneEduca platform to manage your learning content.
 
-Changes made via Edufactory will be committed automatically to this repo.
+Changes made via OneEduca will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Edufactory.
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in OneEduca.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -62,9 +62,9 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Deploy using your preferred hosting service for the Edufactory platform.
+Deploy using your preferred hosting service for the OneEduca platform.
 
-## Can I connect a custom domain to my Edufactory platform?
+## Can I connect a custom domain to my OneEduca platform?
 
 Yes, you can!
 

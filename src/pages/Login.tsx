@@ -114,8 +114,9 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-8 px-2 sm:px-4">
       <Card className="w-full max-w-md shadow-lg dark:bg-gray-800">
         <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-            <img src="/placeholder.svg" alt="Logo" className="h-12 w-12 rounded-full bg-blue-600 p-2 dark:bg-gray-700" />
+          <div className="flex flex-col items-center mb-4">
+            <img src="/favicon.svg" alt="OneEduca Logo" className="h-16 w-16 mb-2" />
+            <h1 className="text-xl font-bold text-blue-700 dark:text-gray-100">OneEduca</h1>
           </div>
           <CardTitle className="text-2xl text-center font-bold text-blue-700 dark:text-gray-100">Entrar na plataforma</CardTitle>
           <CardDescription className="text-center text-gray-600 dark:text-gray-300">

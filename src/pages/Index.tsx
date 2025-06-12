@@ -20,7 +20,10 @@ const Index = () => {
       {/* Header with logo and login button */}
       <header className="bg-blue-600 dark:bg-gray-900 p-4">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="text-white dark:text-gray-100 text-2xl font-bold">EduFactory</div>
+          <div className="flex items-center gap-2">
+            <img src="/favicon.svg" alt="OneEduca Logo" className="h-8 w-8" />
+            <div className="text-white dark:text-gray-100 text-2xl font-bold">OneEduca</div>
+          </div>
           <div className="flex gap-2 items-center">
             <Button
               size="icon"
