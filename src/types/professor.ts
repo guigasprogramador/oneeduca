@@ -350,7 +350,7 @@ export const NOTIFICATION_TYPES = {
   course_approved: 'Curso Aprovado',
   course_rejected: 'Curso Rejeitado',
   new_enrollment: 'Nova Matrícula',
-  forum_message: 'Nova Mensagem no Fórum',
+  forum_message: 'Nova Mensagem no Chat',
   quiz_completed: 'Quiz Concluído'
 };
 

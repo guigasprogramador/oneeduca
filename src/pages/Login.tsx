@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase, clearAuthCacheManually } from "@/integrations/supabase/client";
+import { adaptSupabaseUser } from "@/utils/userAdapter";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Email inválido" }),
@@ -26,10 +27,17 @@ const Login = () => {
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [lastAttemptTime, setLastAttemptTime] = useState(0);
   
-  // Verificar se o usuário já está logado e redirecionar para o dashboard
+  // Verificar se o usuário já está logado e redirecionar baseado no papel
   useEffect(() => {
     if (user && session) {
-      navigate('/dashboard');
+      // Redirecionar baseado no papel do usuário
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (user.role === 'professor') {
+        navigate('/professor/dashboard');
+      } else {
+        navigate('/dashboard'); // Estudantes vão para o dashboard padrão
+      }
     }
   }, [user, session, navigate]);
   
@@ -39,8 +47,16 @@ const Login = () => {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (!error && data.session) {
-          // Se houver uma sessão válida, redirecionar para o dashboard
-          navigate('/dashboard');
+          // Se houver uma sessão válida, redirecionar baseado no papel do usuário
+          const adaptedUser = adaptSupabaseUser(data.session.user);
+          
+          if (adaptedUser?.role === 'admin') {
+            navigate('/admin/dashboard');
+          } else if (adaptedUser?.role === 'professor') {
+            navigate('/professor/dashboard');
+          } else {
+            navigate('/dashboard'); // Estudantes vão para o dashboard padrão
+          }
         }
       } catch (err) {
         console.error('Erro ao verificar sessão:', err);
@@ -79,9 +95,20 @@ const Login = () => {
       // Verificar se o login foi bem-sucedido
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session) {
-        // Login bem-sucedido
+        // Login bem-sucedido - redirecionar baseado no papel do usuário
         toast.success("Login realizado com sucesso!");
-        navigate("/dashboard");
+        
+        // Usar o adaptador para obter dados do usuário
+        const adaptedUser = adaptSupabaseUser(sessionData.session.user);
+        
+        // Redirecionar baseado no papel
+        if (adaptedUser?.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (adaptedUser?.role === 'professor') {
+          navigate('/professor/dashboard');
+        } else {
+          navigate('/dashboard'); // Estudantes vão para o dashboard padrão
+        }
       } else {
         // Se não houver sessão após o login, algo deu errado
         throw new Error("Falha ao estabelecer sessão");

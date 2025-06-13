@@ -162,7 +162,7 @@ export const getCourseById = async (courseId: string): Promise<Course> => {
     // 1. Buscar dados básicos do curso
     const courseResult = await supabase
       .from('courses')
-      .select('id, title, description, thumbnail, duration, instructor, created_at')
+      .select('id, title, description, thumbnail, duration, instructor, professor_id, created_at')
       .eq('id', courseId)
       .single();
     
@@ -262,6 +262,7 @@ export const getCourseById = async (courseId: string): Promise<Course> => {
       thumbnail: courseData.thumbnail || '/placeholder.svg',
       duration: courseData.duration || '',
       instructor: courseData.instructor,
+      professor_id: courseData.professor_id,
       enrolledCount: 0, // Valor padrão já que removemos o campo enrolledcount da consulta
       rating: 0, // Valor padrão já que removemos o campo rating da consulta
       modules: modules,

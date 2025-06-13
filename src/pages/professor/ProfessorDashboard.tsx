@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, Users, MessageSquare, Award, Plus, Settings, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface TeacherStats {
   totalCourses: number;
@@ -49,24 +51,72 @@ const ProfessorDashboard = () => {
       if (!user?.id) return;
       
       try {
-        // Aqui você implementaria a lógica para carregar as estatísticas
-        // const teacherStats = await teacherService.getTeacherStats(user.id);
-        // setStats(teacherStats);
+        setLoading(true);
         
-        // Dados mockados para demonstração
+        // Buscar estatísticas dos cursos
+        const { data: coursesData, error: coursesError } = await supabase
+          .from('courses')
+          .select('id, status, enrollments(id), certificates(id)')
+          .eq('professor_id', user.id);
+
+        if (coursesError) {
+          console.error('Erro ao carregar cursos:', coursesError);
+          toast.error('Erro ao carregar estatísticas dos cursos');
+          return;
+        }
+
+        // Buscar perguntas do chat
+        const { data: forumData, error: forumError } = await supabase
+          .from('forum_posts')
+          .select('id, status')
+          .in('course_id', coursesData?.map(c => c.id) || []);
+
+        if (forumError) {
+          console.error('Erro ao carregar chat:', forumError);
+        }
+
+        // Calcular estatísticas
+        const totalCourses = coursesData?.length || 0;
+        const pendingCourses = coursesData?.filter(c => c.status === 'pending').length || 0;
+        const approvedCourses = coursesData?.filter(c => c.status === 'approved').length || 0;
+        const rejectedCourses = coursesData?.filter(c => c.status === 'rejected').length || 0;
+        
+        // Contar total de alunos únicos matriculados
+        const allEnrollments = coursesData?.flatMap(c => c.enrollments) || [];
+        const totalStudents = allEnrollments.length;
+        
+        // Contar certificados emitidos
+        const allCertificates = coursesData?.flatMap(c => c.certificates) || [];
+        const certificatesIssued = allCertificates.length;
+        
+        // Contar perguntas pendentes (assumindo que status 'pending' significa não respondida)
+        const pendingQuestions = forumData?.filter(p => p.status === 'pending').length || 0;
+        const answeredQuestions = forumData?.filter(p => p.status === 'answered').length || 0;
+        
         setStats({
-          totalCourses: 5,
-          pendingCourses: 2,
-          approvedCourses: 3,
-          rejectedCourses: 0,
-          totalStudents: 150,
-          pendingQuestions: 8,
-          answeredQuestions: 42,
-          certificatesIssued: 89
+          totalCourses,
+          pendingCourses,
+          approvedCourses,
+          rejectedCourses,
+          totalStudents,
+          pendingQuestions,
+          answeredQuestions,
+          certificatesIssued
         });
       } catch (error) {
         console.error('Erro ao carregar estatísticas:', error);
+        toast.error('Erro ao carregar estatísticas');
         // Manter dados padrão em caso de erro
+        setStats({
+          totalCourses: 0,
+          pendingCourses: 0,
+          approvedCourses: 0,
+          rejectedCourses: 0,
+          totalStudents: 0,
+          pendingQuestions: 0,
+          answeredQuestions: 0,
+          certificatesIssued: 0
+        });
       } finally {
         setLoading(false);
       }

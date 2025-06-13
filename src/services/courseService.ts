@@ -343,6 +343,7 @@ const courseService = {
         thumbnail: courseData.thumbnail || '/placeholder.svg',
         duration: courseData.duration || '',
         instructor: courseData.instructor,
+        professor_id: courseData.professor_id,
         enrolledCount: enrollmentsData ? enrollmentsData.length : 0,
         rating: courseData.rating || 0,
         modules: formattedModules,

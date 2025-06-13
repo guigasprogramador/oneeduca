@@ -9,7 +9,7 @@ export const notificationService = {
     message: string;
     type: 'info' | 'success' | 'warning' | 'error' | 'course_approved' | 'course_rejected' | 'new_enrollment' | 'quiz_completed';
     relatedId?: string;
-    relatedType?: 'course' | 'module' | 'lesson' | 'quiz' | 'forum';
+    relatedType?: 'course' | 'module' | 'lesson' | 'quiz' | 'chat';
   }): Promise<Notification> {
     try {
       const { data, error } = await supabase

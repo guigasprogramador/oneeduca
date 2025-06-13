@@ -40,7 +40,10 @@ import CreateCourse from "./pages/professor/CreateCourse";
 import DuplicateCourse from "./pages/professor/DuplicateCourse";
 import PendingCourses from "./pages/professor/PendingCourses";
 import ApprovedCourses from "./pages/professor/ApprovedCourses";
+import CourseView from "./pages/professor/CourseView";
+import CourseEdit from "./pages/professor/CourseEdit";
 import ProfessorModules from "./pages/professor/ProfessorModules";
+import CourseModules from "./pages/professor/CourseModules";
 import ProfessorLessons from "./pages/professor/ProfessorLessons";
 import Forum from "./pages/professor/Forum";
 import CourseApproval from "./pages/admin/CourseApproval";
@@ -108,6 +111,9 @@ const App = () => (
                 <Route path="/professor/courses/duplicate" element={<DuplicateCourse />} />
                 <Route path="/professor/courses/pending" element={<PendingCourses />} />
                 <Route path="/professor/courses/approved" element={<ApprovedCourses />} />
+                <Route path="/professor/courses/:courseId/view" element={<CourseView />} />
+                <Route path="/professor/courses/:courseId/edit" element={<CourseEdit />} />
+                <Route path="/professor/courses/:courseId/modules" element={<CourseModules />} />
                 <Route path="/professor/modules" element={<ProfessorModules />} />
                 <Route path="/professor/lessons" element={<ProfessorLessons />} />
                 <Route path="/professor/forum" element={<Forum />} />

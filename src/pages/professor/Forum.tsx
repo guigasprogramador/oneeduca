@@ -93,7 +93,7 @@ const ProfessorForum = () => {
       console.error('Erro ao carregar dados:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao carregar dados do fórum.',
+        description: 'Erro ao carregar dados do chat.',
         variant: 'destructive'
       });
     } finally {
@@ -254,7 +254,7 @@ const ProfessorForum = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-lg">Carregando fórum...</p>
+          <p className="mt-4 text-lg">Carregando chat...</p>
         </div>
       </div>
     );
@@ -266,7 +266,7 @@ const ProfessorForum = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fórum dos Cursos</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Chat dos Cursos</h1>
           <p className="text-muted-foreground">
             Gerencie tópicos de discussão dos seus cursos
           </p>

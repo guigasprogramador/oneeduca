@@ -12,6 +12,8 @@ import { BookOpen, Users, Clock, Edit, Trash2, Eye, Plus, Search, Filter, MoreHo
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Course {
   id: string;
@@ -84,83 +86,75 @@ const ProfessorCourses = () => {
     if (!user?.id) return;
     
     try {
-      // Aqui você implementaria a lógica para carregar os cursos
-      // const teacherCourses = await courseService.getTeacherCourses(user.id);
-      // setCourses(teacherCourses);
+      setLoading(true);
       
-      // Dados mockados para demonstração
-      const mockCourses: Course[] = [
-        {
-          id: '1',
-          title: 'Introdução ao React',
-          description: 'Aprenda os fundamentos do React.js',
-          duration: '8 horas',
-          instructor: user?.user_metadata?.name || 'Professor',
-          enrolledCount: 45,
-          rating: 4.8,
-          status: 'approved',
-          createdAt: '2024-01-15',
-          updatedAt: '2024-01-20',
-          modules: [
-            {
-              id: 'm1',
-              title: 'Fundamentos',
-              description: 'Conceitos básicos do React',
-              order: 1,
-              lessons: [
-                {
-                  id: 'l1',
-                  title: 'O que é React?',
-                  description: 'Introdução ao React',
-                  type: 'video',
-                  content: 'Conteúdo da aula...',
-                  duration: '15 min',
-                  order: 1,
-                  supplementaryFiles: [
-                    {
-                      id: 'f1',
-                      name: 'slides.pdf',
-                      url: '/files/slides.pdf',
-                      type: 'pdf',
-                      size: 1024000
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          id: '2',
-          title: 'JavaScript Avançado',
-          description: 'Conceitos avançados de JavaScript',
-          duration: '12 horas',
-          instructor: user?.user_metadata?.name || 'Professor',
-          enrolledCount: 32,
-          rating: 4.6,
-          status: 'pending',
-          createdAt: '2024-01-10',
-          updatedAt: '2024-01-18',
-          modules: []
-        },
-        {
-          id: '3',
-          title: 'Node.js Fundamentals',
-          description: 'Backend com Node.js',
-          duration: '10 horas',
-          instructor: user?.user_metadata?.name || 'Professor',
-          enrolledCount: 28,
-          rating: 4.7,
-          status: 'draft',
-          createdAt: '2024-01-05',
-          updatedAt: '2024-01-12',
-          modules: []
-        }
-      ];
+      const { data: coursesData, error } = await supabase
+        .from('courses')
+        .select(`
+          id,
+          title,
+          description,
+          duration,
+          status,
+          created_at,
+          updated_at,
+          modules (
+            id,
+            title,
+            description,
+            order_number,
+            lessons (
+              id,
+              title,
+              duration,
+              order_number
+            )
+          ),
+          enrollments (
+            id
+          )
+        `)
+        .eq('professor_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao carregar cursos:', error);
+        toast.error('Erro ao carregar cursos');
+        return;
+      }
+
+      const formattedCourses: Course[] = coursesData?.map(course => ({
+        id: course.id,
+        title: course.title,
+        description: course.description || '',
+        duration: course.duration || '0 horas',
+        instructor: user?.user_metadata?.name || 'Professor',
+        enrolledCount: course.enrollments?.length || 0,
+        rating: 4.5,
+        status: course.status,
+        createdAt: course.created_at,
+        updatedAt: course.updated_at,
+        modules: course.modules?.map(module => ({
+          id: module.id,
+          title: module.title,
+          description: module.description || '',
+          order: module.order_number,
+          lessons: module.lessons?.map(lesson => ({
+            id: lesson.id,
+            title: lesson.title,
+            description: '',
+            type: 'video' as const,
+            content: '',
+            duration: lesson.duration || '0 min',
+            order: lesson.order_number
+          })) || []
+        })) || []
+      })) || [];
       
-      setCourses(mockCourses);
+      setCourses(formattedCourses);
     } catch (error) {
       console.error('Erro ao carregar cursos:', error);
+      toast.error('Erro ao carregar cursos');
     } finally {
       setLoading(false);
     }
@@ -202,10 +196,23 @@ const ProfessorCourses = () => {
     if (!selectedCourse) return;
     
     try {
-      // Aqui você implementaria a lógica para salvar as alterações
-      // await courseService.updateCourse(selectedCourse.id, editForm);
+      const { error } = await supabase
+        .from('courses')
+        .update({
+          title: editForm.title,
+          description: editForm.description,
+          duration: editForm.duration,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedCourse.id);
+
+      if (error) {
+        console.error('Erro ao salvar alterações:', error);
+        toast.error('Erro ao salvar alterações');
+        return;
+      }
       
-      // Atualizar localmente para demonstração
+      // Atualizar localmente
       setCourses(prev => prev.map(course => 
         course.id === selectedCourse.id 
           ? { ...course, ...editForm, updatedAt: new Date().toISOString() }
@@ -214,8 +221,10 @@ const ProfessorCourses = () => {
       
       setIsEditModalOpen(false);
       setSelectedCourse(null);
+      toast.success('Curso atualizado com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar alterações:', error);
+      toast.error('Erro ao salvar alterações');
     }
   };
 
@@ -223,16 +232,26 @@ const ProfessorCourses = () => {
     if (!selectedCourse) return;
     
     try {
-      // Aqui você implementaria a lógica para deletar o curso
-      // await courseService.deleteCourse(selectedCourse.id);
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', selectedCourse.id);
+
+      if (error) {
+        console.error('Erro ao deletar curso:', error);
+        toast.error('Erro ao deletar curso');
+        return;
+      }
       
-      // Remover localmente para demonstração
+      // Remover localmente
       setCourses(prev => prev.filter(course => course.id !== selectedCourse.id));
       
       setIsDeleteModalOpen(false);
       setSelectedCourse(null);
+      toast.success('Curso deletado com sucesso!');
     } catch (error) {
       console.error('Erro ao deletar curso:', error);
+      toast.error('Erro ao deletar curso');
     }
   };
 
@@ -364,7 +383,7 @@ const ProfessorCourses = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate(`/professor/courses/${course.id}`)}>
+                          <DropdownMenuItem onClick={() => navigate(`/professor/courses/${course.id}/view`)}>
                             <Eye className="mr-2 h-4 w-4" />
                             Visualizar
                           </DropdownMenuItem>
@@ -415,7 +434,7 @@ const ProfessorCourses = () => {
                           variant="outline" 
                           size="sm" 
                           className="flex-1"
-                          onClick={() => navigate(`/professor/courses/${course.id}`)}
+                          onClick={() => navigate(`/professor/courses/${course.id}/view`)}
                         >
                           <Eye className="mr-2 h-4 w-4" />
                           Ver Detalhes

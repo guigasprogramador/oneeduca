@@ -51,7 +51,7 @@ export const ProfessorSidebar = () => {
       href: "/professor/courses/approved",
     },
     {
-      title: "Fórum",
+      title: "Chat",
       icon: <MessageSquare size={20} />,
       href: "/professor/forum",
     },

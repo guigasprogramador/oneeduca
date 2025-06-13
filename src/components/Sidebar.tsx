@@ -1,15 +1,13 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { BookOpen, GraduationCap, LayoutDashboard, Award, Menu, X, UserCheck } from "lucide-react";
+import { BookOpen, GraduationCap, LayoutDashboard, Award, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
-import { useAuth } from "@/contexts/AuthContext";
 
 const Sidebar = () => {
   const location = useLocation();
-  const { isProfessor } = useAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -48,11 +46,6 @@ const Sidebar = () => {
       icon: <Award size={20} />,
       href: "/aluno/certificados",
     },
-    ...(isProfessor() ? [{
-      title: "Área do Professor",
-      icon: <UserCheck size={20} />,
-      href: "/professor/dashboard",
-    }] : []),
   ];
   
   // Componente de navegação que é reutilizado tanto na versão desktop quanto na móvel

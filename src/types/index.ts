@@ -6,6 +6,7 @@ export interface Course {
   thumbnail: string;
   duration: string;
   instructor: string;
+  professor_id?: string;
   enrolledCount: number;
   rating: number;
   modules: Module[];

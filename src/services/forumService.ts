@@ -43,7 +43,7 @@ export interface ForumMessage {
 
 class ForumService {
   /**
-   * Busca todos os tópicos do fórum para administradores (incluindo cursos não publicados)
+   * Busca todos os tópicos do chat para administradores (incluindo cursos não publicados)
    */
   async getAllTopicsForAdmin(): Promise<ForumTopic[]> {
     try {
@@ -56,7 +56,7 @@ class ForumService {
       });
 
       if (error) {
-        console.error('Erro ao buscar tópicos do fórum:', error);
+        console.error('Erro ao buscar tópicos do chat:', error);
         throw error;
       }
 
@@ -109,13 +109,13 @@ class ForumService {
 
       return topicsWithCounts;
     } catch (error) {
-      console.error('Erro no serviço de fórum:', error);
+      console.error('Erro no serviço de chat:', error);
       throw error;
     }
   }
 
   /**
-   * Busca tópicos do fórum para professores (apenas seus cursos)
+   * Busca tópicos do chat para professores (apenas seus cursos)
    */
   async getTopicsForProfessor(professorId: string): Promise<ForumTopic[]> {
     try {
@@ -183,13 +183,13 @@ class ForumService {
 
       return topicsWithCounts;
     } catch (error) {
-      console.error('Erro no serviço de fórum do professor:', error);
+      console.error('Erro no serviço de chat do professor:', error);
       throw error;
     }
   }
 
   /**
-   * Cria um novo tópico no fórum
+   * Cria um novo tópico no chat
    */
   async createTopic(topicData: CreateForumTopicData): Promise<string> {
     try {

@@ -67,7 +67,7 @@ const AdminSidebar = () => {
       href: "/admin/certificates",
     },
     {
-      title: "Fórum",
+      title: "Chat",
       icon: <MessageSquare size={20} />,
       href: "/admin/forum",
     },
